@@ -283,6 +283,25 @@ label.f textarea { resize: vertical; min-height: 64px; }
   background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 600; font-size: 14px;
   box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: calc(100% - 32px); text-align: center;
 }
+/* Promociones: franja baja y rectangular sobre los productos */
+.promos { margin: 0 0 22px; max-width: 520px; }
+@media (max-width: 640px) { .promos { max-width: 100%; } }
+.promo-track { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 12px; }
+.promo-track::-webkit-scrollbar { display: none; }
+.promo-card { flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 3 / 1; max-width: 100%; position: relative; border-radius: 12px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); display: block; color: var(--fg); text-decoration: none; }
+.promo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.promo-card .promo-txt { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 18px; font-family: var(--font-display); font-style: italic; font-weight: 900; text-transform: uppercase; font-size: clamp(18px, 5vw, 28px); line-height: 1.05; text-wrap: balance; }
+.promo-card .promo-txt::after { content: ""; position: absolute; right: -20px; bottom: 16px; width: 40%; height: 7px; background: var(--red); transform: skewX(-24deg); }
+.promo-card .promo-tag { position: absolute; left: 8px; top: 8px; background: var(--red); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
+.promo-dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+.promo-dots button { width: 7px; height: 7px; border-radius: 999px; border: 0; padding: 0; background: var(--line); cursor: pointer; }
+.promo-dots button[aria-current="true"] { background: var(--red); width: 18px; }
+.ed.promo-ed { grid-template-columns: 240px minmax(0, 1fr); }
+.promo-ed .ed-pic { aspect-ratio: 3 / 1; background: var(--surface-2); }
+.promo-ed .ed-pic img { object-fit: cover; }
+.promo-ed .ed-pic .promo-txt-ed { display: grid; place-items: center; height: 100%; color: var(--muted); font-weight: 700; font-size: 13px; padding: 0 8px; text-align: center; }
+@media (max-width: 640px) { .ed.promo-ed { grid-template-columns: minmax(0, 1fr); } .promo-ed .ed-pic { max-width: 100%; } }
+
 /* Panel de administración */
 .admin { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column;
   padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -364,6 +383,10 @@ label.f textarea { resize: vertical; min-height: 64px; }
 
 <main class="shop" id="view-productos">
   <div class="wrap">
+    <section class="promos" id="promos" aria-label="Promociones" hidden>
+      <div class="promo-track" id="promoTrack"></div>
+      <div class="promo-dots" id="promoDots"></div>
+    </section>
     <div class="shop-head">
       <h2>Productos</h2>
       <div class="chips" id="chips" role="group" aria-label="Filtrar por categoría"></div>
@@ -399,13 +422,13 @@ label.f textarea { resize: vertical; min-height: 64px; }
   <div class="menu-contact">
     WhatsApp para pedidos e inscripciones
     <a id="menuWa" href="https://wa.me/59176853774" target="_blank" rel="noopener">+591 76853774</a>
-    <span class="ver" id="version">Versión 3</span>
+    <span class="ver" id="version">Versión 4</span>
   </div>
 </aside>
 
 <footer class="foot">
   <div class="wrap">
-    <span>© Prime Fit · Precios en bolivianos (Bs) · Versión 3</span>
+    <span>© Prime Fit · Precios en bolivianos (Bs) · Versión 4</span>
     <span id="footWa">Pedidos por WhatsApp</span>
   </div>
 </footer>
@@ -446,6 +469,7 @@ label.f textarea { resize: vertical; min-height: 64px; }
     <div class="wrap">
       <div class="tabs" id="adminTabs" role="tablist" aria-label="Secciones">
         <button type="button" role="tab" data-tab="productos" aria-selected="true">Productos</button>
+        <button type="button" role="tab" data-tab="promos" aria-selected="false">Promociones</button>
         <button type="button" role="tab" data-tab="disciplinas" aria-selected="false">Disciplinas</button>
         <button type="button" role="tab" data-tab="ajustes" aria-selected="false">Ajustes</button>
       </div>
@@ -470,7 +494,7 @@ label.f textarea { resize: vertical; min-height: 64px; }
 /* El catálogo (productos, disciplinas y WhatsApp) vive en el bloque pf-data de arriba.
    Es el catálogo de respaldo: al cargar, la página pide a Netlify el catálogo guardado (/api/catalogo). */
 const TIENDA = "Prime Fit";
-let DATA = { whatsapp: "", productos: [], disciplinas: [] };
+let DATA = { whatsapp: "", productos: [], disciplinas: [], promos: [] };
 try { DATA = Object.assign(DATA, JSON.parse(document.getElementById("pf-data").textContent)); } catch (e) {}
 let PRODUCTOS = DATA.productos, DISCIPLINAS = DATA.disciplinas, WHATSAPP_NUMERO = DATA.whatsapp || "";
 
@@ -831,6 +855,11 @@ function renderAdmin() {
     body.innerHTML = `<p class="admin-help">Toca la imagen para subir la foto del producto. Para cambiar el orden usa ↑ y ↓.</p>` +
       draft.productos.map((p, i) => edProducto(p, i, draft.productos.length)).join("") +
       `<button class="add-row" type="button" data-act="nuevo" data-kind="p">+ Agregar producto</button>`;
+  } else if (tabAdmin === "promos") {
+    if (!Array.isArray(draft.promos)) draft.promos = [];
+    body.innerHTML = `<p class="admin-help">Aparecen en una franja arriba de los productos. Usa imágenes horizontales (tamaño ideal 1200 × 400). Si hay varias, pasan solas cada 5 segundos. Al tocarla, el cliente te escribe por WhatsApp.</p>` +
+      draft.promos.map((x, i) => edPromo(x, i, draft.promos.length)).join("") +
+      `<button class="add-row" type="button" data-act="nuevo" data-kind="pr">+ Agregar promoción</button>`;
   } else if (tabAdmin === "disciplinas") {
     body.innerHTML = `<p class="admin-help">Toca la imagen para subir una foto horizontal de la clase.</p>` +
       draft.disciplinas.map((d, i) => edDisciplina(d, i, draft.disciplinas.length)).join("") +
@@ -906,7 +935,18 @@ function edDisciplina(d, i, n) {
     ${acciones("d", i, n)}
   </div>`;
 }
-function lista(kind) { return kind === "p" ? draft.productos : draft.disciplinas; }
+function edPromo(x, i, n) {
+  const id = "pr-" + esc(x.id);
+  return `<div class="ed promo-ed">
+    <button type="button" class="ed-pic" data-act="foto" data-kind="pr" data-i="${i}" aria-label="Cambiar imagen de la promoción">${x.foto ? `<img src="${esc(x.foto)}" alt="">` : `<span class="promo-txt-ed">Toca para subir la imagen</span>`}<span>${x.foto ? "Cambiar imagen" : "Subir imagen"}</span></button>
+    <div class="ed-fields">
+      <label class="full" for="${id}-t">Texto de la promoción (opcional)<input id="${id}-t" data-kind="pr" data-i="${i}" data-f="titulo" value="${esc(x.titulo || "")}" placeholder="Ej. Proteína + shaker de regalo"></label>
+      <label class="chk full" for="${id}-a"><input id="${id}-a" type="checkbox" data-kind="pr" data-i="${i}" data-f="activa" ${x.activa !== false ? "checked" : ""}>Mostrar en la tienda</label>
+    </div>
+    ${acciones("pr", i, n)}
+  </div>`;
+}
+function lista(kind) { return kind === "p" ? draft.productos : kind === "pr" ? (draft.promos = draft.promos || []) : draft.disciplinas; }
 
 $("#adminBody").addEventListener("input", (e) => {
   const el = e.target.closest("[data-f]"); if (!el || !draft) return;
@@ -919,7 +959,7 @@ $("#adminBody").addEventListener("input", (e) => {
   const it = lista(el.dataset.kind)[+el.dataset.i]; if (!it) return;
   if (f === "precio") it.precio = Math.max(0, parseFloat(el.value) || 0);
   else if (f === "sabores") it.sabores = el.value.split(",").map((s) => s.trim()).filter(Boolean);
-  else if (f === "agotado") it.agotado = el.checked;
+  else if (el.type === "checkbox") it[f] = el.checked;
   else it[f] = el.value;
   if (el.dataset.kind === "p" && f === "nombre" && it.arte && it.arteAuto) delete it.arte;
   delete it.ejemplo;
@@ -933,6 +973,7 @@ $("#adminBody").addEventListener("click", (e) => {
   if (act === "foto") { fotoDestino = { kind, i }; $("#adminFile").value = ""; $("#adminFile").click(); return; }
   if (act === "nuevo") {
     if (kind === "p") arr.push({ id: nuevoId("p"), nombre: "Nuevo producto", presentacion: "", precio: 0, cat: (arr[arr.length - 1] || {}).cat || "Proteínas", sabores: [], forma: "bote" });
+    else if (kind === "pr") arr.push({ id: nuevoId("pr"), titulo: "", activa: true });
     else arr.push({ id: nuevoId("d"), nombre: "Nueva disciplina", precio: 150, icono: "pesa", desc: "" });
     marcarSucio(); renderAdmin();
     const eds = document.querySelectorAll("#adminBody .ed"); const ult = eds[eds.length - 1];
@@ -1031,8 +1072,43 @@ $("#logoBtn").addEventListener("click", () => {
   else ultimoToqueLogo = ahora;
 });
 
+let promoTimer = null;
+function renderPromos() {
+  const activas = (DATA.promos || []).filter((x) => x.activa !== false && (x.foto || String(x.titulo || "").trim()));
+  const sec = $("#promos");
+  sec.hidden = activas.length === 0;
+  clearInterval(promoTimer);
+  if (!activas.length) { $("#promoTrack").innerHTML = ""; $("#promoDots").innerHTML = ""; return; }
+  const n = WHATSAPP_NUMERO.replace(/\D/g, "");
+  $("#promoTrack").innerHTML = activas.map((x, i) => {
+    const t = String(x.titulo || "").trim();
+    const txt = `Hola ${TIENDA}, me interesa la promoción${t ? ": " + t : ""}. ¿Me dan más información?`;
+    return `<a class="promo-card" href="https://wa.me/${n}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener" aria-label="${esc(t || "Promoción " + (i + 1))}">
+      ${x.foto ? `<img src="${esc(x.foto)}" alt="${esc(t || "Promoción")}" loading="lazy">` : `<span class="promo-txt">${esc(t)}</span><span class="promo-tag">Promo</span>`}
+    </a>`;
+  }).join("");
+  const dots = $("#promoDots");
+  dots.innerHTML = activas.length > 1 ? activas.map((_, i) => `<button type="button" data-promo="${i}" aria-label="Ver promoción ${i + 1}" aria-current="${i === 0}"></button>`).join("") : "";
+  if (activas.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    promoTimer = setInterval(() => {
+      const tr = $("#promoTrack"); if (!tr || document.hidden) return;
+      const i = Math.round(tr.scrollLeft / tr.clientWidth);
+      tr.scrollTo({ left: ((i + 1) % activas.length) * tr.clientWidth, behavior: "smooth" });
+    }, 5000);
+  }
+}
+$("#promoTrack").addEventListener("scroll", () => {
+  const tr = $("#promoTrack"); const i = Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth));
+  document.querySelectorAll("#promoDots button").forEach((b, k) => b.setAttribute("aria-current", String(k === i)));
+}, { passive: true });
+$("#promoDots").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-promo]"); if (!b) return;
+  const tr = $("#promoTrack"); tr.scrollTo({ left: +b.dataset.promo * tr.clientWidth, behavior: "smooth" });
+});
+
 function aplicarDatos(d) {
-  DATA = Object.assign({ whatsapp: "", productos: [], disciplinas: [] }, d);
+  DATA = Object.assign({ whatsapp: "", productos: [], disciplinas: [], promos: [] }, d);
+  if (!Array.isArray(DATA.promos)) DATA.promos = [];
   delete DATA.clave;
   PRODUCTOS = DATA.productos; DISCIPLINAS = DATA.disciplinas; WHATSAPP_NUMERO = DATA.whatsapp || "";
   byId = Object.fromEntries(PRODUCTOS.map((p) => [p.id, p]));
@@ -1041,7 +1117,7 @@ function aplicarDatos(d) {
   for (const k of Object.keys(carrito)) if (!byId[carrito[k].id]) delete carrito[k];
   guardar();
   aplicarWhatsapp(); textosDisciplinas();
-  renderChips(); renderGrid(); renderDisciplinas(); renderCart();
+  renderChips(); renderGrid(); renderDisciplinas(); renderPromos(); renderCart();
 }
 
 let inicial = "productos", hashIni = "";
